@@ -1,0 +1,42 @@
+
+Generation of mws appln.
+The Reports API section of the Amazon Marketplace Web Service (Amazon MWS) API lets you request various reports 
+that help you manage your Sell on Amazon business. Report types are specified using the ReportTypes enumeration.
+Amazon periodically adds new fields and field values to reports. Be sure to build report parsers into your 
+Amazon MWS applications that can gracefully handle these types of report updates.
+
+The report process begins by creating a report request. 
+Next, you obtain a list of report requests which shows the report request identifier and status of each requested 
+report. Finally, you use the report request identifier from this listing to get the actual report.
+
+Submit a report request using the RequestReport operation. 
+This is a request to Amazon MWS to generate a specific report. 
+Note that you can also schedule order report requests to be submitted periodically using the ManageReportSchedule operation.
+
+http://docs.developer.amazonservices.com/en_US/reports/index.html
+A. Seller submits a "RequestReport" operation. 
+B. Amazon receives request and returns "ReportRequestId". 
+C. Report on the listing data to be obtained using RequestReport Operation. 
+-------------
+RequestReport
+Creates a report request and submits the request to Amazon MWS.
+ReportType	- A value of the ReportType that indicates the type of report to request.
+http://docs.developer.amazonservices.com/en_US/reports/Reports_RequestReport.html 
+-------------
+/**
+ * ==================================
+ * A. Get items currently in amazon
+ * ==================================
+ */
+$marketplaceIdArray = array("Id" => array(MARKETPLACE_ID));
+$request = new MarketplaceWebService_Model_RequestReportRequest();
+$request->setMerchant(MERCHANT_ID);
+$request->setMarketplaceIdList($marketplaceIdArray);
+$request->setReportType('_GET_MERCHANT_LISTINGS_DATA_');
+invokeRequestReport($service, $request);
+
+
+
+
+
+
