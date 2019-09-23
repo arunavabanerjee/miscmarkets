@@ -17,12 +17,12 @@ http://docs.developer.amazonservices.com/en_US/reports/index.html
 A. Seller submits a "RequestReport" operation. 
 B. Amazon receives request and returns "ReportRequestId". 
 C. Report on the listing data to be obtained using RequestReport Operation. 
--------------
+----------------------------------------------------------------
 RequestReport
 Creates a report request and submits the request to Amazon MWS.
 ReportType	- A value of the ReportType that indicates the type of report to request.
 http://docs.developer.amazonservices.com/en_US/reports/Reports_RequestReport.html 
--------------
+----------------------------------------------------------------
 /**
  * ==================================
  * A. Get items currently in amazon
@@ -33,7 +33,67 @@ $request = new MarketplaceWebService_Model_RequestReportRequest();
 $request->setMerchant(MERCHANT_ID);
 $request->setMarketplaceIdList($marketplaceIdArray);
 $request->setReportType('_GET_MERCHANT_LISTINGS_DATA_');
-invokeRequestReport($service, $request);
+$requestReportId = invokeRequestReport($service, $request);
+-----------------------------------------------------------------
+D. Seller submits a GetReportRequestList operation using the requestResponseId.
+E. Amazon returns the processing status and when _DONE_ some reports and return GeneratedReportId. 
+
+-----------------------------------------------------------------
+/**
+ * =======================================
+ * B. Get Report Generated Id and Status
+ * =======================================
+ */
+$reportStatus = ''; $generatedReportId =0;
+while(1){
+$request = new MarketplaceWebService_Model_GetReportRequestListRequest();
+$request->setMerchant(MERCHANT_ID);
+//$request->setReportRequestIdList($requestReportId); 
+//$request->setReportTypeList('_GET_MERCHANT_LISTINGS_DATA_'); 
+$request->setMaxCount(1);
+$reportRequestList_Id_Status = invokeGetReportRequestList($service, $request);
+foreach($reportRequestList_Id_Status as $reportId => $status){ $reportStatus = $status; 
+	if($reportStatus == '_DONE_'){ $generatedReportId = $reportId }
+}
+if($reportStatus == '_DONE_'){ break; } else{  sleep(50); continue; }
+} //end while
+
+echo "\n====================================================";
+echo "\nA. Report Generated Id and Status - MWS : \n";
+print_r($reportRequestList_Id_Status);
+echo "\n====================================================";
+-------------------------------------------------------------------------------------------
+F. Seller submits a GetReport Operation using the GneratedReportId or ReportId
+-------------------------------------------------------------------------------------------
+/**
+ * =========================================
+ * C. Get Report Generated From Amazon MWS
+ * =========================================
+ */
+$request = new MarketplaceWebService_Model_GetReportRequest();
+$request->setMerchant(MERCHANT_ID);
+$request->setReport(@fopen('php://memory', 'rw+'));
+$request->setReportId($generatedReportId);
+invokeGetReport($service, $request);
+
+echo "\n====================================================";
+echo "\nA. Report Generated In 'tmp' folder \n";
+echo "\n====================================================\n";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
