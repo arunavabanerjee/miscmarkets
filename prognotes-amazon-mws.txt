@@ -4,10 +4,6 @@ The Reports API section of the Amazon Marketplace Web Service (Amazon MWS) API l
 that help you manage your Sell on Amazon business. Report types are specified using the ReportTypes enumeration.
 Amazon periodically adds new fields and field values to reports. 
 
-/**
- * Get Active items currently in Amazon using report api
- */
-
 The report process begins by creating a report request. 
 Next, you obtain a list of report requests which shows the report request identifier and status of each requested 
 report. Finally, you use the report request identifier from this listing to get the actual report.
@@ -179,6 +175,35 @@ Amazon is currently in the process of making images mandatory, so for new produc
 an image, you really should submit at least one image.
 Call SubmitFeed() to send a _POST_PRODUCT_OVERRIDES_DATA_ feed is optional, and only used for items that have special 
 shipping rates applied (e.g. expedited products)
+
+
+<?xml version="1.0" encoding="iso-8859-1"?>
+        <AmazonEnvelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="amzn-envelope.xsd">
+        <Header>
+        <DocumentVersion>1.01</DocumentVersion>
+        <MerchantIdentifier>YOUR_MERCHANT_ID</MerchantIdentifier>
+        </Header>
+        <MessageType>Product</MessageType>
+        <PurgeAndReplace>false</PurgeAndReplace><Message>
+                <MessageID>1</MessageID>
+                <OperationType>Update</OperationType>
+                <Product>
+                <SKU>25075-9x12</SKU>
+                <StandardProductID>
+                <Type>ASIN</Type>
+                <Value>B01MCR4YC5</Value>
+                </StandardProductID>
+                <ProductTaxCode>A_GEN_NOTAX</ProductTaxCode>
+                <DescriptionData>
+                <Title>Anam Black Large Rug</Title>
+                <Brand>Alliyah Rugs</Brand>
+                <Description>
+The Alliyah Collection offers high quality, value and integrity that seems to been lost in recent times by most manufactures. The Anam Black Large Rug is made of first grade New-Zealand blend wool which is Hand washed, Hand carved and Hand finished. The entire collection is 100% Handmade.</Description>
+                <ItemType>New</ItemType>
+                </DescriptionData>
+                </Product>
+                </Message></AmazonEnvelope>
 
 =====================================================================================================================
 
