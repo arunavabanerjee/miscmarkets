@@ -27,62 +27,132 @@ ReportType	- A value of the ReportType that indicates the type of report to requ
 http://docs.developer.amazonservices.com/en_US/reports/Reports_RequestReport.html 
 ----------------------------------------------------------------
 /**
- * ==================================
- * A. Get items currently in amazon
- * ==================================
+ * ==============================================
+ * A. Report request to generate report id
+ * ==============================================
  */
 $marketplaceIdArray = array("Id" => array(MARKETPLACE_ID));
 $request = new MarketplaceWebService_Model_RequestReportRequest();
 $request->setMerchant(MERCHANT_ID);
 $request->setMarketplaceIdList($marketplaceIdArray);
 $request->setReportType('_GET_MERCHANT_LISTINGS_DATA_');
-$requestReportId = invokeRequestReport($service, $request);
------------------------------------------------------------------
-D. Seller submits a GetReportRequestList operation using the requestResponseId.
-E. Amazon returns the processing status and when _DONE_ some reports and return GeneratedReportId. 
+$requestReportIdSubmitted = invokeRequestReport($service, $request);
+if ($requestReportIdSubmitted == 0){
+	echo "\n=======================================================";
+	echo "\n Request Report Could Not Be Submitted";
+	echo "\n A. Request Report Id - MWS : ".$requestReportIdSubmitted;
+	echo "\n=======================================================\n"; 
+	exit;
+} else {
+	echo "\n=======================================================";
+	echo "\n Request Report Submitted To Amazon MWS";
+	echo "\n A. Request Report Id - MWS : ".$requestReportIdSubmitted;
+	echo "\n=======================================================\n";
+}
 
------------------------------------------------------------------
 /**
  * =======================================
  * B. Get Report Generated Id and Status
  * =======================================
  */
 $reportStatus = ''; $generatedReportId =0;
-while(1){
-$request = new MarketplaceWebService_Model_GetReportRequestListRequest();
-$request->setMerchant(MERCHANT_ID);
-//$request->setReportRequestIdList($requestReportId); 
-//$request->setReportTypeList('_GET_MERCHANT_LISTINGS_DATA_'); 
-$request->setMaxCount(1);
-$reportRequestList_Id_Status = invokeGetReportRequestList($service, $request);
-foreach($reportRequestList_Id_Status as $reportId => $status){ $reportStatus = $status; 
-	if($reportStatus == '_DONE_'){ $generatedReportId = $reportId }
+try{
+	while(1){
+		$request = new MarketplaceWebService_Model_GetReportRequestListRequest();
+		$request->setMerchant(MERCHANT_ID);
+		//$request->setReportRequestIdList($requestReportId); 
+		//$request->setReportTypeList('_GET_MERCHANT_LISTINGS_DATA_'); 
+		$request->setMaxCount(1);
+		$reportRequestList_Id_Status = invokeGetReportRequestList($service, $request); 
+		//var_dump($reportRequestList_Id_Status); exit;
+		foreach($reportRequestList_Id_Status as $reportId => $status){ 
+			if($status == '_DONE_'){ $reportStatus = $status; }
+			elseif($status = 'GeneratedReportId'){ $generatedReportId = $reportId; }
+			else{ $reportStatus = $status; }
+		}
+		if($reportStatus == '_DONE_'){ break; } else{  sleep(50); continue; }
+	} //end while
+} catch(Exception $ex){  
+	echo("Caught Exception: " . $ex->getMessage() . "\n");
+    echo("Response Status Code: " . $ex->getStatusCode() . "\n"); 
+	exit;
 }
-if($reportStatus == '_DONE_'){ break; } else{  sleep(50); continue; }
-} //end while
+echo "\n====================================================";
+echo "\n B. Report Generated Id and Status - MWS : \n";
+print_r($reportRequestList_Id_Status); 
+echo "\n Generated Report Id :".$generatedReportId;
+echo "\n====================================================\n";
 
-echo "\n====================================================";
-echo "\nA. Report Generated Id and Status - MWS : \n";
-print_r($reportRequestList_Id_Status);
-echo "\n====================================================";
--------------------------------------------------------------------------------------------
-F. Seller submits a GetReport Operation using the GneratedReportId or ReportId
--------------------------------------------------------------------------------------------
 /**
  * =========================================
  * C. Get Report Generated From Amazon MWS
  * =========================================
  */
+$asinValues = array();
 $request = new MarketplaceWebService_Model_GetReportRequest();
 $request->setMerchant(MERCHANT_ID);
 $request->setReport(@fopen('php://memory', 'rw+'));
 $request->setReportId($generatedReportId);
-invokeGetReport($service, $request);
+$asinValues = invokeGetReport($service, $request);
+if(empty($asinValues)){
+	echo "\n====================================================";	
+	echo "\nC. Report Could Not Be Generated In 'tmp' folder \n"; 
+	echo "\n asinValues empty";
+	echo "\n====================================================\n";
+	exit;
+} else {
+	echo "\n====================================================";	
+	echo "\nC. Report Generated In 'tmp' folder \n"; //print_r($asinValues); 
+	echo 'No Of Values -- SKU => ASNIN :'.count($asinValues);
+	echo "\n====================================================\n";
+}
 
+/**
+ * ===================================================================================
+ * PRODUCTS REMOVAL SECTION - BASED ON SKU CURRENTLY
+ * THIS WILL BE ENABLED IF PRODUCTS ARE REQUIRED TO BE REMOVED	
+ * ===================================================================================*/
+/**
+ * =======================================================================
+ * D1.. Remove The Erronous Products from Report 
+ *    1. Read the csv file  
+ *    2. Remove errornous products by generating feed  
+ * =======================================================================
+ */
+$file = generateRemovalFeed($asinValues);
 echo "\n====================================================";
-echo "\nA. Report Generated In 'tmp' folder \n";
+echo "\nD. Removal Feed Generated In 'tmp' folder: \n"; 
+echo "\n Filename: "; print($file); 
 echo "\n====================================================\n";
 
+/**
+ * =======================================================================
+ * D2. Submission Of Feed To Amazon MWS
+ * =======================================================================
+ */
+$removalFeedHandle = fopen($file, 'r+'); rewind($removalFeedHandle);
+$marketplaceIdArray = array("Id" => array(MARKETPLACE_ID));
+$request = new MarketplaceWebService_Model_SubmitFeedRequest();
+$request->setMerchant(MERCHANT_ID);
+$request->setMarketplaceIdList($marketplaceIdArray);
+$request->setFeedType('_POST_PRODUCT_DATA_');
+$request->setContentMd5(base64_encode(md5(stream_get_contents($removalFeedHandle), true)));
+rewind($removalFeedHandle);
+$request->setPurgeAndReplace(false);
+$request->setFeedContent($removalFeedHandle); //$request->setFeedContent(stream_get_contents($feedHandle));
+rewind($removalFeedHandle);
+$feedSubmissionId = invokeSubmitFeed($service, $request); @fclose($removalFeedHandle); 
+if($feedSubmissionId == 0){
+	echo "\n====================================================";
+	echo "\nD2. Removal Feed Not Submitted To Amazon MWS : \n"; 
+	echo "\n Submission Id: "; print($feedSubmissionId); 
+	echo "\n====================================================\n";
+} else {
+	echo "\n====================================================";
+	echo "\nD2. Removal Feed Submitted To Amazon MWS : \n"; 
+	echo "\n Submission Id: "; print($feedSubmissionId); 
+	echo "\n====================================================\n";
+}
 
 
 
@@ -90,16 +160,26 @@ echo "\n====================================================\n";
 
 
 
+=====================================================================================================================
 
+Listing items can consist of these steps:
+-----------------------------------------
+Call SubmitFeed() to send a _POST_PRODUCT_DATA_ feed is mandatory in all cases. 
+Call SubmitFeed() to send a _POST_PRODUCT_PRICING_DATA_ feed is mandatory in all cases
+Call SubmitFeed() to send a _POST_INVENTORY_AVAILABILITY_DATA_ feed is mandatory in all cases
 
+Call SubmitFeed() to send a _POST_PRODUCT_DATA_ feed is mandatory in all cases.
+You can omit product details if you're adding your listing to an existing item. 
+If you list new products, this feed must be successfully processed before sending any other feed for those same item(s)
+,not sure if the same is true for existing products.
+Call SubmitFeed() to send a _POST_PRODUCT_RELATIONSHIP_DATA_ feed. This step can be skipped for existing products or 
+products without variants or other parent/child relations.
+Call SubmitFeed() to send a _POST_PRODUCT_IMAGE_DATA_ feed. This step can be skipped for existing products. 
+Amazon is currently in the process of making images mandatory, so for new products or products currently not showing 
+an image, you really should submit at least one image.
+Call SubmitFeed() to send a _POST_PRODUCT_OVERRIDES_DATA_ feed is optional, and only used for items that have special 
+shipping rates applied (e.g. expedited products)
 
-
-
-
-
-
-
-
-
+=====================================================================================================================
 
 
