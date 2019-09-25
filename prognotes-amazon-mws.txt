@@ -2,8 +2,11 @@
 Generation of mws appln.
 The Reports API section of the Amazon Marketplace Web Service (Amazon MWS) API lets you request various reports 
 that help you manage your Sell on Amazon business. Report types are specified using the ReportTypes enumeration.
-Amazon periodically adds new fields and field values to reports. Be sure to build report parsers into your 
-Amazon MWS applications that can gracefully handle these types of report updates.
+Amazon periodically adds new fields and field values to reports. 
+
+/**
+ * Get Active items currently in Amazon using report api
+ */
 
 The report process begins by creating a report request. 
 Next, you obtain a list of report requests which shows the report request identifier and status of each requested 
